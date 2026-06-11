@@ -33,6 +33,10 @@ export const objections: Objection[] = [
     text: '"We are already using AWS Bedrock and Anthropic models for our agents, and AWS provides a more mature AI ecosystem with a wider range of services. As a result, we do not see a compelling reason to consider OCI."',
     category: 'ecosystem',
   },
+  {
+    text: '"We have standardized on a broad open-source stack, and Oracle feels like a proprietary, niche play rather than a modern multi-cloud platform."',
+    category: 'ecosystem',
+  },
   
   // Category 2: Operational Friction & Multi-Cloud Complexity
   {
@@ -65,6 +69,14 @@ export const objections: Objection[] = [
   // Category 4: The Agentic AI Value Proposition
   {
     text: '"There\'s limited incentive to adopt OCI solely for Agentic when AWS, Azure, and GCP already host most enterprise workloads; making Oracle\'s embedded-agent value proposition far more compelling to existing Oracle customers than to enterprises whose data and AI infrastructure already run seamlessly in other clouds."',
+    category: 'agentic',
+  },
+  {
+    text: '"The agentic AI pitch sounds interesting, but we already have automation and co-pilot tooling on AWS/Azure. It\'s hard to justify another platform unless the value is very specific."',
+    category: 'agentic',
+  },
+  {
+    text: '"Even if OCI has a compelling agent story, our data and AI operations already run well in other clouds, so an extra migration path feels like more risk than reward."',
     category: 'agentic',
   },
 ];

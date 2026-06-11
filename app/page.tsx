@@ -333,7 +333,9 @@ export default function HomePage() {
 
             <div className="rounded-3xl bg-slate-950/80 p-5 ring-1 ring-white/10">
               <p className="text-sm uppercase tracking-[0.24em] text-slate-500">About</p>
-              <p className="mt-3 text-slate-400">hackthon is powered by Oracle Cloud Infrastructure Generative AI. Enterprise sales teams use this MVP to practice objection handling and get real-time AI coaching in a fast, scalable cloud environment.</p>
+              <p className="mt-3 text-slate-400">Sales Coaching is powered by Oracle Cloud Infrastructure Generative AI. OCI sales teams use this coaching app to practice objection handling and get real-time AI coaching in a fast, scalable cloud environment.</p>
+              <p className="mt-3 text-slate-400">Build for SKO 2026 Hackthon, by Showgirl Systems team.</p>
+              <img src="/oracleredbull.png" alt="Oracle Red Bull" className="mx-auto mt-6 h-28 w-auto rounded-3xl object-contain" />
             </div>
           </aside>
         </section>
