@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Mic, Pause, Play, Sparkles, ShieldCheck } from 'lucide-react';
-import { objections, categories, personas, getRandomObjections } from '@/lib/prompts';
+import { objections, categories, personas, getRandomObjections, Objection } from '@/lib/prompts';
 
 type SessionResult = {
   score: number;
@@ -22,12 +22,12 @@ export default function HomePage() {
   const [persona, setPersona] = useState(personas[0].id);
   const [category, setCategory] = useState(categories[0].id);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [sessionObjections, setSessionObjections] = useState<string[]>([]);
+  const [sessionObjections, setSessionObjections] = useState<Objection[]>([]);
   const [sessionId, setSessionId] = useState('');
   const [reply, setReply] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<SessionResult | null>(null);
-  const [history, setHistory] = useState<Array<{ objection: string; answer: string; result: SessionResult }>>([]);
+  const [history, setHistory] = useState<Array<{ objection: Objection; answer: string; result: SessionResult }>>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [hasSpeechSupport, setHasSpeechSupport] = useState(false);
 
@@ -37,8 +37,11 @@ export default function HomePage() {
   useEffect(() => {
     setHasSpeechSupport(!!(typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)));
     setSessionId(Math.random().toString(36).slice(2));
-    setSessionObjections(getRandomObjections(3));
-  }, []);
+    setSessionObjections(getRandomObjections(3, category));
+    setCurrentIndex(0);
+    setResult(null);
+    setReply('');
+  }, [category]);
 
   const startVoiceCapture = async () => {
     if (!hasSpeechSupport) return;
@@ -78,7 +81,7 @@ export default function HomePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          objection: currentObjection,
+          objection: currentObjection.text,
           answer: reply,
           persona,
           category,
@@ -114,7 +117,7 @@ export default function HomePage() {
 
   const sessionObjection = useMemo(
     () => ({
-      title: currentObjection,
+      title: currentObjection?.text || '',
       category: categories.find((item) => item.id === category)?.label || 'General',
       persona: personas.find((item) => item.id === persona)?.label || 'Customer',
     }),
