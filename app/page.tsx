@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Mic, Pause, Play, Sparkles, ShieldCheck } from 'lucide-react';
-import { objections, categories, personas } from '@/lib/prompts';
+import { objections, categories, personas, getRandomObjections } from '@/lib/prompts';
 
 type SessionResult = {
   score: number;
@@ -22,6 +22,7 @@ export default function HomePage() {
   const [persona, setPersona] = useState(personas[0].id);
   const [category, setCategory] = useState(categories[0].id);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [sessionObjections, setSessionObjections] = useState<string[]>([]);
   const [sessionId, setSessionId] = useState('');
   const [reply, setReply] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,12 +31,13 @@ export default function HomePage() {
   const [isRecording, setIsRecording] = useState(false);
   const [hasSpeechSupport, setHasSpeechSupport] = useState(false);
 
-  const currentObjection = objections[currentIndex];
-  const progressLabel = `${currentIndex + 1} of ${objections.length}`;
+  const currentObjection = sessionObjections[currentIndex];
+  const progressLabel = `${currentIndex + 1} of ${sessionObjections.length}`;
 
   useEffect(() => {
     setHasSpeechSupport(!!(typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)));
     setSessionId(Math.random().toString(36).slice(2));
+    setSessionObjections(getRandomObjections(3));
   }, []);
 
   const startVoiceCapture = async () => {
@@ -105,10 +107,10 @@ export default function HomePage() {
   const handleNext = () => {
     setReply('');
     setResult(null);
-    setCurrentIndex((prev) => Math.min(prev + 1, objections.length - 1));
+    setCurrentIndex((prev) => Math.min(prev + 1, sessionObjections.length - 1));
   };
 
-  const sessionComplete = currentIndex === objections.length - 1 && result;
+  const sessionComplete = currentIndex === sessionObjections.length - 1 && result;
 
   const sessionObjection = useMemo(
     () => ({

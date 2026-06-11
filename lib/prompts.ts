@@ -36,3 +36,10 @@ export const objections = [
   // Category 4: The Agentic AI Value Proposition
   '"There\'s limited incentive to adopt OCI solely for Agentic when AWS, Azure, and GCP already host most enterprise workloads; making Oracle\'s embedded-agent value proposition far more compelling to existing Oracle customers than to enterprises whose data and AI infrastructure already run seamlessly in other clouds."',
 ];
+
+// Helper function to randomly select N objections from the full list
+export function getRandomObjections(count: number): string[] {
+  const shuffled = [...objections].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
