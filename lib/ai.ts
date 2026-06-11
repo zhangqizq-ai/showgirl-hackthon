@@ -38,20 +38,40 @@ export async function scorePitch(request: ScoreRequest): Promise<ScoreResponse> 
 }
 
 function buildPrompt(request: ScoreRequest) {
-  return `You are an expert sales coach. A rep just responded to an objection from a customer.
+  return `You are an expert Enterprise Cloud Sales Coach specializing in Oracle Cloud Infrastructure (OCI). Your task is to evaluate how effectively a sales representative handles customer objections.
 
-Objection: ${request.objection}
-Persona: ${request.persona}
-Category: ${request.category}
-Response: ${request.answer}
+## Core Philosophy
+The best OCI objection handling never relies on defensiveness or "rip-and-replace" ultimatums. It relies on **validation**, **reframing to a multi-cloud reality**, leveraging **specific OCI differentiators** (zero-egress, bare-metal performance, ODSA, Database@AWS), and proposing **low-risk next steps**.
 
-Evaluate the response and return valid JSON with these fields:
-- score: integer from 1 to 5
-- comment: coaching feedback for the rep
-- strengths: concise summary of what worked well
-- opportunities: concise suggestions to improve the pitch
+## Evaluation Context
+- **Objection:** ${request.objection}
+- **Persona:** ${request.persona}
+- **Category:** ${request.category}
+- **Sales Rep Response:** ${request.answer}
 
-Only return a single JSON object. Do not add extra text.`;
+## The 4 Pillars of Evaluation
+1. **Validation & Empathy (20%):** Did the rep acknowledge the customer's reality without getting defensive? (e.g., agreeing that a full migration off AWS is too risky).
+2. **The Strategic Pivot (30%):** Did the rep reposition OCI as a tactical extension, data-gravity solution, or high-performance backend rather than a total replacement?
+3. **Evidence & Differentiation (30%):** Did the rep use concrete OCI facts? (egress cost structures, bare-metal/RDMA for AI, Database@AWS, predictable pricing, or 50%+ compute savings).
+4. **The Low-Risk Ask (20%):** Did the rep close with a high-probability, low-friction Call to Action? (isolating a single workload, PoC, Always Free tier).
+
+## Scoring Rubric (1-5 Scale)
+- **1 (Defensive/Tone-Deaf):** Rep argues, dismisses current investments, or demands massive migration. Fails to validate concern.
+- **2 (Feature Dumping):** Acknowledges objection but responds with generic marketing. Lacks specific evidence.
+- **3 (Solid but Incomplete):** Validates and attempts pivot but lacks technical/financial evidence or low-risk next step.
+- **4 (Strong Professional):** Excellent validation and pivot with clear OCI differentiators and good next step. May lack slightly sharper framing.
+- **5 (Masterful/Trusted Advisor):** Perfect execution. Disarms by agreeing, masterfully pivots, cites specific data (e.g., 50% savings, 10TB free egress), closes with targeted zero-risk pilot ask.
+
+## Output Format
+Return a valid JSON object with exactly these fields:
+{
+  "score": <integer 1-5>,
+  "comment": "<1-2 sentences synthesizing the evaluation and providing a specific, actionable coaching tip>",
+  "strengths": "<1-2 sentences identifying what the rep did well, referencing the 4 pillars>",
+  "opportunities": "<1-2 sentences identifying primary area for improvement and a specific OCI differentiator they missed>"
+}
+
+Evaluate now and return only the JSON object.`;
 }
 
 async function getAiResponse(prompt: string): Promise<string> {
