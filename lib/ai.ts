@@ -19,22 +19,7 @@ export async function scorePitch(request: ScoreRequest): Promise<ScoreResponse> 
   const prompt = buildPrompt(request);
   const rawAi = await getAiResponse(prompt);
 
-  try {
-    const parsed = JSON.parse(rawAi);
-    return {
-      score: Number(parsed.score) || 0,
-      comment: parsed.comment || String(parsed.comment || ''),
-      strengths: String(parsed.strengths || ''),
-      opportunities: String(parsed.opportunities || ''),
-    };
-  } catch (error) {
-    return {
-      score: 0,
-      comment: rawAi,
-      strengths: '',
-      opportunities: '',
-    };
-  }
+  return parseScoreResponse(rawAi);
 }
 
 function buildPrompt(request: ScoreRequest) {
@@ -71,7 +56,214 @@ Return a valid JSON object with exactly these fields:
   "opportunities": "<1-2 sentences identifying primary area for improvement and a specific OCI differentiator they missed>"
 }
 
+Rules:
+- Return only JSON.
+- Do not wrap the JSON in markdown.
+- Do not include explanatory text before or after the JSON.
+
 Evaluate now and return only the JSON object.`;
+}
+
+function parseScoreResponse(rawAi: string): ScoreResponse {
+  const parsed = parseJsonFromText(rawAi);
+
+  if (Array.isArray(parsed) && isRecord(parsed[0])) {
+    return normalizeScoreResponse(parsed[0], rawAi);
+  }
+
+  if (isRecord(parsed)) {
+    return normalizeScoreResponse(parsed, rawAi);
+  }
+
+  return parseLabeledResponse(rawAi);
+}
+
+function parseJsonFromText(text: string): unknown {
+  const candidates = [
+    text.trim(),
+    extractMarkdownJson(text),
+    extractFirstJsonObject(text),
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Try the next recovery strategy.
+    }
+  }
+
+  return null;
+}
+
+function extractMarkdownJson(text: string): string | null {
+  const fencedBlock = text.trim().match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fencedBlock?.[1]) return fencedBlock[1].trim();
+
+  const embeddedBlock = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  return embeddedBlock?.[1]?.trim() || null;
+}
+
+function extractFirstJsonObject(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (char === '{') depth += 1;
+
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, index + 1);
+    }
+  }
+
+  return null;
+}
+
+function normalizeScoreResponse(parsed: Record<string, unknown>, fallbackText: string): ScoreResponse {
+  return {
+    score: normalizeScore(parsed.score ?? parsed.rating ?? parsed.overall_score),
+    comment: cleanText(parsed.comment ?? parsed.feedback ?? parsed.coaching_comment ?? fallbackText),
+    strengths: cleanText(parsed.strengths ?? parsed.strength ?? parsed.what_worked),
+    opportunities: cleanText(
+      parsed.opportunities ??
+        parsed.opportunity ??
+        parsed.improvements ??
+        parsed.areas_for_improvement ??
+        parsed.next_steps
+    ),
+  };
+}
+
+function parseLabeledResponse(rawAi: string): ScoreResponse {
+  const text = cleanText(extractMarkdownJson(rawAi) || rawAi);
+
+  return {
+    score: extractScoreFromText(text),
+    comment:
+      extractLabeledSection(text, ['comment', 'coaching comment', 'feedback']) ||
+      fallbackComment(text),
+    strengths: extractLabeledSection(text, ['strengths', 'strength', 'what worked']),
+    opportunities: extractLabeledSection(text, [
+      'opportunities',
+      'opportunity',
+      'areas for improvement',
+      'area for improvement',
+      'improvements',
+      'recommended improvement',
+      'next step',
+    ]),
+  };
+}
+
+function extractScoreFromText(text: string): number {
+  const scoreMatch = text.match(/(?:^|[\s,{])["']?score["']?\s*[:=-]\s*["']?(\d+(?:\.\d+)?)\s*(?:\/\s*5)?/i);
+  if (scoreMatch?.[1]) return normalizeScore(scoreMatch[1]);
+
+  return 0;
+}
+
+function extractLabeledSection(text: string, labels: string[]): string {
+  const startPattern = labels.map(labelToPattern).join('|');
+  const allLabels = [
+    'score',
+    'comment',
+    'coaching comment',
+    'feedback',
+    'strengths',
+    'strength',
+    'what worked',
+    'opportunities',
+    'opportunity',
+    'areas for improvement',
+    'area for improvement',
+    'improvements',
+    'recommended improvement',
+    'next step',
+  ].map(labelToPattern).join('|');
+
+  const startRegex = new RegExp(
+    `(?:^|\\n)\\s*(?:[-*]\\s*)?(?:\\*\\*)?["']?(?:${startPattern})["']?(?:\\*\\*)?\\s*[:=-]\\s*`,
+    'i'
+  );
+  const startMatch = startRegex.exec(text);
+  if (!startMatch) return '';
+
+  const sectionStart = startMatch.index + startMatch[0].length;
+  const rest = text.slice(sectionStart);
+  const endRegex = new RegExp(
+    `\\n\\s*(?:[-*]\\s*)?(?:\\*\\*)?["']?(?:${allLabels})["']?(?:\\*\\*)?\\s*[:=-]`,
+    'i'
+  );
+  const sectionEnd = rest.search(endRegex);
+
+  return cleanText(sectionEnd >= 0 ? rest.slice(0, sectionEnd) : rest);
+}
+
+function labelToPattern(label: string): string {
+  return label
+    .trim()
+    .split(/\s+/)
+    .map(escapeRegex)
+    .join('[\\s_-]+');
+}
+
+function normalizeScore(value: unknown): number {
+  if (typeof value === 'number') return clampScore(value);
+
+  const match = String(value ?? '').match(/\d+(?:\.\d+)?/);
+  return match ? clampScore(Number(match[0])) : 0;
+}
+
+function clampScore(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(5, Math.max(1, Math.round(value)));
+}
+
+function fallbackComment(text: string): string {
+  if (!text) {
+    return 'AI feedback was generated, but the response format could not be parsed. Please try again.';
+  }
+
+  return text.length > 500 ? `${text.slice(0, 500).trim()}...` : text;
+}
+
+function cleanText(value: unknown): string {
+  return String(value ?? '')
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .trim();
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 async function getAiResponse(prompt: string): Promise<string> {
